@@ -154,3 +154,53 @@ resource "aws_security_group_rule" "InstanceSGRule" {
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.albSG.id
 }
+
+resource "aws_lb_target_group" "albTargetGroup" {
+  name     = "albTargetGroup"
+  port     = 8080
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.myVPC.id
+
+}
+
+resource "aws_lb_target_group_attachment" "instance1Attachment" {
+  target_group_arn = aws_lb_target_group.albTargetGroup.arn
+  target_id        = aws_instance.myInstance1.id
+  port             = 8080
+}
+
+resource "aws_lb_target_group_attachment" "instance2Attachment" {
+  target_group_arn = aws_lb_target_group.albTargetGroup.arn
+  target_id        = aws_instance.myInstance2.id
+  port             = 8080
+}
+
+resource "aws_lb" "myALB" {
+
+  depends_on         = [aws_internet_gateway.igw]
+  name               = "myALB"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.albSG.id]
+  subnets            = [aws_subnet.mySubnet1.id, aws_subnet.mySubnet2.id]
+
+  enable_deletion_protection = false // this is imporant when creact a load balancer in terraform so we can destroy resources
+
+
+
+  tags = {
+    Environment = "learning"
+  }
+
+}
+
+resource "aws_lb_listener" "myALBlistener" {
+  load_balancer_arn = aws_lb.myALB.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.albTargetGroup.arn
+  }
+}
